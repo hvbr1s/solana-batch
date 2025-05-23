@@ -17,7 +17,7 @@ export interface FordefiSolanaConfig {
   apiPathEndpoint: string;
 };
 
-// Fordefi Config to configure
+
 export const fordefiConfig: FordefiSolanaConfig = {
   accessToken: process.env.FORDEFI_API_TOKEN || "",
   vaultId: process.env.VAULT_ID || "",
@@ -26,14 +26,18 @@ export const fordefiConfig: FordefiSolanaConfig = {
   apiPathEndpoint: '/api/v1/transactions/create-and-wait'
 };
 
-const fordefiVault =  new PublicKey(fordefiConfig.fordefiSolanaVaultAddress)
-const alice = new PublicKey("9BgxwZMyNzGUgp6hYXMyRKv3kSkyYZAMPGisqJgnXCFS");
-const bob = new PublicKey("FEwZdEBick94iFJcuVQS2gZyqhSDunSs82FTZgk26RpD");
-const charlie = new PublicKey("GAPpdNzX3BnsHYJvRH2MiaTqKhDd7QFnwWskxtTLJsbf")
-const recipients: PublicKey[] = [alice, bob, charlie];
-const amountPerRecipient : bigint = 1_000n
-const tableAddress = new PublicKey('2wFMVudMk2dCWcf16SMyxQ7TnQVLpvhH7nLNWyJyjrzL')  // // https://solscan.io/account/9sZtLMvmg6Jnxr6Sr1TcgJP9YcGY39yMug76FNfN4Azf
-const action: string = "batch" // create, extend or batch
+
+export const batchConfig = {
+  fordefiVault: new PublicKey(fordefiConfig.fordefiSolanaVaultAddress),
+  recipientsList: [
+    new PublicKey("9BgxwZMyNzGUgp6hYXMyRKv3kSkyYZAMPGisqJgnXCFS"),
+    new PublicKey("FEwZdEBick94iFJcuVQS2gZyqhSDunSs82FTZgk26RpD"),
+    new PublicKey("GAPpdNzX3BnsHYJvRH2MiaTqKhDd7QFnwWskxtTLJsbf")
+  ],
+  amountPerRecipient: 1_000n,
+  tableAddress: new PublicKey('Czt9hAHcWhLtcZc1CqHrJmidvX4ZnGiBALdgh9t7L5Kn'), // update 
+  action: "create" // create, extend or batch
+};
 
 async function main(): Promise<void> {
   if (!fordefiConfig.accessToken) {
@@ -43,12 +47,12 @@ async function main(): Promise<void> {
 
   // Prepare request body for tx payload
   let jsonBody;
-  if (action === "create") {
-    jsonBody = await createAlt(connection, fordefiVault, fordefiConfig);
-  } else if (action === "extend") {
-    jsonBody = await extendAlt(connection, fordefiVault, fordefiConfig, tableAddress, recipients);
-  } else if (action === "batch") {
-    jsonBody = await doBatch(connection, fordefiVault, fordefiConfig, tableAddress, recipients, amountPerRecipient);
+  if (batchConfig.action === "create") {
+    jsonBody = await createAlt(connection, batchConfig.fordefiVault, fordefiConfig);
+  } else if (batchConfig.action === "extend") {
+    jsonBody = await extendAlt(connection, batchConfig.fordefiVault, fordefiConfig, batchConfig.tableAddress, batchConfig.recipientsList);
+  } else if (batchConfig.action === "batch") {
+    jsonBody = await doBatch(connection, batchConfig.fordefiVault, fordefiConfig, batchConfig.tableAddress, batchConfig.recipientsList, batchConfig.amountPerRecipient);
   } else {
     console.error('Error: Invalid action specified');
     return;
