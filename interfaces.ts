@@ -6,7 +6,7 @@ export interface FordefiSolanaConfig {
     fordefiSolanaVaultAddress: string;
     privateKeyPem: string;
     apiPathEndpoint: string;
-  };
+};
   
   export interface BatchConfig {
     fordefiVault: PublicKey;
@@ -15,4 +15,4 @@ export interface FordefiSolanaConfig {
     tableAddress: PublicKey;
     action: "create" | "extend" | "batch";
     isSplBatch: boolean
-  }
+};

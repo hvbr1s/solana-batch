@@ -1,13 +1,12 @@
-import { createAlt, extendAlt, doBatch, doSplBatch } from './helpers'
-import { fordefiConfig, batchConfig, TOKEN_MINT } from './config'
+import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { createAlt, extendAlt, doBatch, doSplBatch } from './helpers';
+import { fordefiConfig, batchConfig, TOKEN_MINT } from './config';
+import { Connection, PublicKey } from '@solana/web3.js';
 import { createAndSignTx } from './process_tx';
 import { signWithApiSigner } from './signer';
-import { Connection, PublicKey } from '@solana/web3.js';
-import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 const connection = new Connection('https://api.mainnet-beta.solana.com');
 
-// Helper function to derive ATAs for SPL tokens
 async function deriveTokenRecipientList(recipientsList: PublicKey[], mint: string): Promise<PublicKey[]> {
   const mintPubKey = new PublicKey(mint);
   const tokenRecipients = [];
@@ -40,10 +39,10 @@ async function main(): Promise<void> {
     let recipientsToExtend: PublicKey[];
     
     if (batchConfig.isSplBatch) {
-      // For SPL tokens, derive ATA addresses
+      // For SPL tokens we first derive the ATA addresses
       recipientsToExtend = await deriveTokenRecipientList(batchConfig.recipientsList, TOKEN_MINT);
     } else {
-      // For SOL transfers, use wallet addresses directly
+      // For SOL transfers we use the wallet addresses directly
       recipientsToExtend = batchConfig.recipientsList;
     }
     
@@ -56,13 +55,13 @@ async function main(): Promise<void> {
     );
   } else if (batchConfig.action === "batch") {
     if (batchConfig.isSplBatch) {
-      // For SPL batch, doSplBatch will derive ATAs internally
+      // For SPL batch, the doSplBatch func will derive ATAs internally
       jsonBody = await doSplBatch(
         connection, 
         batchConfig.fordefiVault, 
         fordefiConfig, 
         batchConfig.tableAddress, 
-        batchConfig.recipientsList, // Pass wallet addresses, function will derive ATAs
+        batchConfig.recipientsList,
         batchConfig.amountPerRecipient, 
         TOKEN_MINT
       );

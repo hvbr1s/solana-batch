@@ -141,7 +141,7 @@ export async function doSplBatch(
   fordefiVault: PublicKey,
   fordefiConfig: FordefiSolanaConfig,
   tableAddress: PublicKey,
-  walletAddresses: PublicKey[], // These are wallet addresses - we'll derive ATAs from them
+  walletAddresses: PublicKey[],
   amountPerRecipient: bigint,
   mint: string,
 ) {
@@ -154,14 +154,12 @@ export async function doSplBatch(
     ASSOCIATED_TOKEN_PROGRAM_ID
   );
 
-  // Derive ATA addresses fresh for each recipient wallet
   const createAtaIxs = [];
   const recipientATAs = [];
   
   for (let i = 0; i < walletAddresses.length; i++) {
     const walletAddress = walletAddresses[i];
     
-    // Derive the ATA address for this wallet
     const ata = await getAssociatedTokenAddress(
       mintPubKey,
       walletAddress,
@@ -172,11 +170,9 @@ export async function doSplBatch(
     
     recipientATAs.push(ata);
     
-    // Check if the ATA already exists
     try {
       const account = await connection.getAccountInfo(ata);
       if (!account) {
-        // Create ATA instruction
         createAtaIxs.push(
           createAssociatedTokenAccountInstruction(
             fordefiVault,    // payer
@@ -191,7 +187,6 @@ export async function doSplBatch(
       }
     } catch (error) {
       console.log(`Error checking account ${ata.toString()}: ${error}`);
-      // If we can't check, assume it doesn't exist and try to create it
       createAtaIxs.push(
         createAssociatedTokenAccountInstruction(
           fordefiVault,    // payer
@@ -203,7 +198,6 @@ export async function doSplBatch(
     }
   }
 
-  // Create transfer instructions using the derived ATA addresses
   const transferIxs = recipientATAs.map(recipientATA =>
     createTransferInstruction(
       sourceATA,           // source ATA
