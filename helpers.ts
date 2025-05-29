@@ -1,5 +1,6 @@
 import { Connection, PublicKey, SystemProgram, AddressLookupTableProgram, TransactionMessage, VersionedTransaction, AddressLookupTableAccount } from '@solana/web3.js';
-import { FordefiSolanaConfig } from './run';
+import { getAssociatedTokenAddress, ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, createTransferInstruction, createAssociatedTokenAccountInstruction } from '@solana/spl-token';
+import { FordefiSolanaConfig } from './interfaces';
 
 function buildFordefiRequestBody(
   fordefiConfig: FordefiSolanaConfig,
@@ -42,6 +43,23 @@ async function createAndSerializeTransaction(
   console.debug(tx);
   
   return Buffer.from(tx.message.serialize()).toString('base64');
+}
+
+export async function deriveATA(recipient: string, mint_address: string) {
+  const mint = new PublicKey(mint_address);
+  const walletAddress = new PublicKey(recipient);
+  
+  const ata = await getAssociatedTokenAddress(
+    mint,        
+    walletAddress,    
+    false,           
+    TOKEN_PROGRAM_ID, 
+    ASSOCIATED_TOKEN_PROGRAM_ID 
+  );
+  
+  console.log('ATA:', ata.toString());
+  
+  return ata;
 }
 
 export async function createAlt( 
@@ -115,5 +133,96 @@ export async function doBatch(
     [tableAccount]
   );
   
+  return buildFordefiRequestBody(fordefiConfig, serializedMessage);
+}
+
+export async function doSplBatch(
+  connection: Connection,
+  fordefiVault: PublicKey,
+  fordefiConfig: FordefiSolanaConfig,
+  tableAddress: PublicKey,
+  walletAddresses: PublicKey[], // These are wallet addresses - we'll derive ATAs from them
+  amountPerRecipient: bigint,
+  mint: string,
+) {
+  const mintPubKey = new PublicKey(mint);
+  const sourceATA = await getAssociatedTokenAddress(
+    mintPubKey,
+    fordefiVault,
+    false,
+    TOKEN_PROGRAM_ID,
+    ASSOCIATED_TOKEN_PROGRAM_ID
+  );
+
+  // Derive ATA addresses fresh for each recipient wallet
+  const createAtaIxs = [];
+  const recipientATAs = [];
+  
+  for (let i = 0; i < walletAddresses.length; i++) {
+    const walletAddress = walletAddresses[i];
+    
+    // Derive the ATA address for this wallet
+    const ata = await getAssociatedTokenAddress(
+      mintPubKey,
+      walletAddress,
+      false,
+      TOKEN_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+    
+    recipientATAs.push(ata);
+    
+    // Check if the ATA already exists
+    try {
+      const account = await connection.getAccountInfo(ata);
+      if (!account) {
+        // Create ATA instruction
+        createAtaIxs.push(
+          createAssociatedTokenAccountInstruction(
+            fordefiVault,    // payer
+            ata,             // ATA address to create
+            walletAddress,   // owner (wallet address)
+            mintPubKey       // mint
+          )
+        );
+        console.log(`Will create ATA ${ata.toString()} for wallet ${walletAddress.toString()}`);
+      } else {
+        console.log(`ATA ${ata.toString()} already exists for wallet ${walletAddress.toString()}`);
+      }
+    } catch (error) {
+      console.log(`Error checking account ${ata.toString()}: ${error}`);
+      // If we can't check, assume it doesn't exist and try to create it
+      createAtaIxs.push(
+        createAssociatedTokenAccountInstruction(
+          fordefiVault,    // payer
+          ata,             // ATA address to create
+          walletAddress,   // owner (wallet address)
+          mintPubKey       // mint
+        )
+      );
+    }
+  }
+
+  // Create transfer instructions using the derived ATA addresses
+  const transferIxs = recipientATAs.map(recipientATA =>
+    createTransferInstruction(
+      sourceATA,           // source ATA
+      recipientATA,        // destination ATA
+      fordefiVault,        // authority
+      amountPerRecipient   // amount
+    )
+  );
+
+  const allInstructions = [...createAtaIxs, ...transferIxs];
+
+  const tableAccount = (await connection.getAddressLookupTable(tableAddress)).value!;
+
+  const serializedMessage = await createAndSerializeTransaction(
+    connection,
+    fordefiVault,
+    allInstructions,
+    [tableAccount]
+  );
+
   return buildFordefiRequestBody(fordefiConfig, serializedMessage);
 }
