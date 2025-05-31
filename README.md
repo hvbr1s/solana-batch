@@ -13,8 +13,11 @@ Helper code for performing batch transfers on Solana using your Fordefi Solana v
 ## Prerequisites
 
 - Node.js (v14+)
-- Fordefi Solana vault and API credentials
-- Private key for API User's request signing
+- Fordefi Solana vault 
+- Set up an API Signer ([see here](https://docs.fordefi.com/developers/getting-started/set-up-an-api-signer))
+- Create an API user and access token ([see here](https://docs.fordefi.com/developers/getting-started/create-an-api-user))
+- Generate a private/public key pair for your API user ([see here](https://docs.fordefi.com/developers/getting-started/pair-an-api-client-with-the-api-signer))
+- Register your API user with your API Signer (same link as above)
 - Solana SPL tokens and SOL in your Fordefi Solana Vault
 
 ## Setup
@@ -28,11 +31,11 @@ Helper code for performing batch transfers on Solana using your Fordefi Solana v
 3. Create a `.env` file in the root directory with the following variables:
    ```
    FORDEFI_API_TOKEN=your_fordefi_api_user_token
-   VAULT_ID=your_fordefi_vault_id
-   VAULT_ADDRESS=your_fordefi_solana_wallet_address
+   VAULT_ID=your_fordefi_solana_vault_id
+   VAULT_ADDRESS=your_fordefi_solana_vault_address
    ```
 
-4. Create a `secret` directory and place your API User's private key file inside:
+4. Create a `secret` directory and place your API user's private key file inside:
    ```bash
    mkdir -p secret
    # Add your private.pem file to the secret directory
@@ -48,12 +51,12 @@ Update `config.ts` to customize your batch transfer:
 export const batchConfig: BatchConfig = {
   fordefiVault: new PublicKey(fordefiConfig.fordefiSolanaVaultAddress),
   recipientsList: [
-    new PublicKey("9BgxwZMyNzGUgp6hYXMyRKv3kSkyYZAMPGisqJgnXCFS"),
-    new PublicKey("FEwZdEBick94iFJcuVQS2gZyqhSDunSs82FTZgk26RpD"),
-    new PublicKey("GAPpdNzX3BnsHYJvRH2MiaTqKhDd7QFnwWskxtTLJsbf")
+    new PublicKey("Recipient1AddressHere"),
+    new PublicKey("Recipient2AddressHere"),
+    new PublicKey("Recipient3AddressHere")
   ],
   amountPerRecipient: 100n, // Amount in smallest unit
-  tableAddress: new PublicKey('YOUR_ALT_ADDRESS_HERE'),
+  tableAddress: new PublicKey('YOUR_ALT_ADDRESS_HERE'), // Lookup table address
   action: "batch", // "create", "extend", or "batch"
   isSplBatch: false // true for SPL tokens, false for SOL
 };
